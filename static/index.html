@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Message List</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <table border="1">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Content</th>
+            <th>Action</th>
+          </tr>
+          <tbody>
+            <tr v-for="(message, index) in messages" :key="message.id">
+              <td>{{ message.id }}</td>
+              <td>
+                <input v-if="editingMessageSet.has(index)" v-model="message.content" />
+                <span v-else>{{ message.content }}</span>
+              </td>
+              <td>
+                <span v-if="editingMessageSet.has(index)">
+                  <button @click="putMessage(index)">save</button>
+                  <button @click="cancelEditMessage(index)">cancel</button>
+                </span>
+                <button v-else @click="startEditMessage(index)">edit</button>
+                <button @click="deleteMessage(index)">delete</button>
+              </td>
+            </tr>
+          </tbody>
+        </thead>
+      </table>
+      <br/>
+      <input v-model="message" />
+      <button @click="postMessage">postMessage</button>
+    </div>
+    <script>
+      new Vue({
+        el: '#app',
+        data: {
+          messages: [],
+          editingMessageSet: new Set(),
+          message: '',
+        },
+        created: function() {
+          this.getMessage();
+        },
+        methods: {
+          getMessage() {
+            this.request('GET', undefined).then((data) => {
+              console.log(data);
+              this.messages = data;
+            });
+          },
+          postMessage() {
+            this.request('POST', { content: this.message }).then((data) => {
+              console.log(data);
+              this.messages.push(data);
+              this.message = '';
+            });
+          },
+          cancelEditMessage(index) {
+            const copySet = new Set(this.editingMessageSet.values());
+            copySet.delete(index)
+
+            this.editingMessageSet = copySet;
+          },
+          startEditMessage(index) {
+            const copySet = new Set(this.editingMessageSet.values());
+            copySet.add(index)
+
+            this.editingMessageSet = copySet;
+          },
+          putMessage(index) {
+            const message = this.messages[index];
+            this.request('PUT', { id: message.id, content: message.content }).then((data) => {
+              this.messages[index] = data;
+              this.cancelEditMessage(index)
+            });
+          },
+          deleteMessage(index) {
+            this.request('DELETE', { id: this.messages[index].id }).then((data) => {
+              this.messages.splice(index, 1);
+            });
+          },
+          async request(httpMethod, data) {
+            const response = await fetch('/messages', {
+              method: httpMethod,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data),
+            });
+
+            return response.json();
+          },
+        },
+      });
+    </script>
+  </body>
+</html>
